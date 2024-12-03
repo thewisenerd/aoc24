@@ -1,7 +1,7 @@
-mod one;
-mod two;
-mod three;
+mod d01;
+mod d02;
+mod d03;
 
 fn main() {
-    three::two()
+    d03::two()
 }
