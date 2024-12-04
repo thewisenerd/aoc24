@@ -4,5 +4,5 @@ mod d03;
 mod d04;
 
 fn main() {
-    d04::one()
+    d04::two()
 }
