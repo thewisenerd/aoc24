@@ -1,7 +1,10 @@
 use crate::utils::index_math;
 use std::cell::Cell;
+use std::collections::HashSet;
+use std::io;
+use std::io::Write;
 
-#[derive(Clone)]
+#[derive(Clone, Eq, Hash, PartialEq, Debug)]
 struct Guard {
     x: usize,
     y: usize,
@@ -17,6 +20,7 @@ struct GridCell {
     obstacle: bool,
 }
 
+#[derive(Clone)]
 struct State {
     grid: Vec<Vec<GridCell>>,
     guard: Guard,
@@ -159,9 +163,9 @@ fn next_cell<'a>(grid: &'a Vec<Vec<GridCell>>, guard: &Guard) -> Option<&'a Grid
     Some(cell)
 }
 
-fn walk(input: String) -> i32 {
-    let mut state = parse_grid(input);
+fn walk(mut state: State) -> (bool, i32) {
     let mut result = 1; // one guard cell is always open
+    let mut trodden: HashSet<Guard> = HashSet::new();
 
     loop {
         // print_grid(&state);
@@ -171,7 +175,7 @@ fn walk(input: String) -> i32 {
             break;
         }
         let cell = next.unwrap();
-        println!("{} {}", cell.x, cell.y);
+        // println!("{} {}", cell.x, cell.y);
         if cell.obstacle {
             let (ndx, ndy) = match (state.guard.dx, state.guard.dy) {
                 (-1, 0) => (0, -1), // < : ^
@@ -195,11 +199,49 @@ fn walk(input: String) -> i32 {
                 cell.open.set(true);
                 result += 1;
             }
+
+            if trodden.contains(&state.guard) {
+                return (true, result);
+            } else {
+                trodden.insert(state.guard.clone());
+            }
+
             state.guard = Guard {
                 x: cell.x,
                 y: cell.y,
                 dx: state.guard.dx,
                 dy: state.guard.dy,
+            }
+        }
+    }
+
+    (false, result)
+}
+
+fn identify_loop_positions(state: State) -> i32 {
+    let mut result = 0;
+
+    let grid = state.clone().grid;
+    let grid_height = grid.len();
+    for (y, line) in grid.iter().enumerate() {
+        let line_length = line.len();
+        for (x, cell) in line.iter().enumerate() {
+            println!("[{}/{}] [{}/{}]", y, grid_height, x, line_length);
+            io::stdout().flush().expect("flush failed.");
+            if cell.obstacle {
+                continue;
+            }
+            if cell.x == state.guard.x && cell.y == state.guard.y {
+                continue;
+            }
+
+            let mut ns = state.clone();
+            let mut_cell = ns.grid.get_mut(y).unwrap().get_mut(x).unwrap();
+            mut_cell.obstacle = true;
+
+            let (loopity, _) = walk(ns);
+            if loopity {
+                result += 1;
             }
         }
     }
@@ -215,14 +257,32 @@ mod tests {
     #[test]
     fn one() {
         let input = fs::read_to_string("inputs/6.test").expect("failed to read input");
-        let result = walk(input);
+        let state = parse_grid(input);
+        let (_has_loop, result) = walk(state);
         assert_eq!(result, 41);
     }
 
     #[test]
     fn one_actual() {
         let input = fs::read_to_string("inputs/6").expect("failed to read input");
-        let result = walk(input);
+        let state = parse_grid(input);
+        let (_has_loop, result) = walk(state);
+        println!("{}", result);
+    }
+
+    #[test]
+    fn two() {
+        let input = fs::read_to_string("inputs/6.test").expect("failed to read input");
+        let state = parse_grid(input);
+        let result = identify_loop_positions(state);
+        assert_eq!(result, 6);
+    }
+
+    #[test]
+    fn two_actual() {
+        let input = fs::read_to_string("inputs/6").expect("failed to read input");
+        let state = parse_grid(input);
+        let result = identify_loop_positions(state);
         println!("{}", result);
     }
 }
